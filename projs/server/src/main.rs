@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 use bevy_renet::{
     renet::{
         DefaultChannel, RenetConnectionConfig, RenetServer, ServerAuthentication, ServerConfig,
@@ -24,6 +24,8 @@ fn new_renet_server() -> RenetServer {
 }
 
 fn main() {
+    println!("Starting Blitz Server...");
+
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
 
@@ -34,12 +36,13 @@ fn main() {
 
     app.add_system(panic_on_error_system);
 
+    println!("Blitz Server Running!");
     app.run();
 }
 
 fn server_update_system(
     mut server_events: EventReader<ServerEvent>,
-    mut commands: Commands,
+    // mut commands: Commands,
     // mut lobby: ResMut<Lobby>,
     mut server: ResMut<RenetServer>,
 ) {

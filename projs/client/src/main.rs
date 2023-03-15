@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{app::AppExit, log, prelude::*, window::WindowCloseRequested};
 use bevy_renet::{
     renet::{ClientAuthentication, DefaultChannel, RenetClient, RenetConnectionConfig},
     RenetClientPlugin,
@@ -9,8 +9,8 @@ use std::net::UdpSocket;
 use std::time::SystemTime;
 
 fn new_renet_client() -> RenetClient {
-    let server_addr = "127.0.0.1:5001".parse().unwrap();
-    let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let server_addr = "127.0.0.1:5001".parse().unwrap(); // "192.168.0.6:5001".parse().unwrap(); //
+    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
     let connection_config = RenetConnectionConfig::default();
     let current_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -44,6 +44,7 @@ fn main() {
     );
 
     app.add_system(panic_on_error_system);
+    app.add_system(exit_system);
 
     app.run();
 }
@@ -60,4 +61,11 @@ fn client_send_input(player_input: Res<PlayerInput>, mut client: ResMut<RenetCli
     let input_message = bincode::serialize(&*player_input).unwrap();
 
     client.send_message(DefaultChannel::Reliable, input_message);
+}
+
+fn exit_system(events: EventReader<WindowCloseRequested>, mut client: ResMut<RenetClient>) {
+    if !events.is_empty() {
+        log::info!("Disconnecting from Server...");
+        client.disconnect();
+    }
 }
