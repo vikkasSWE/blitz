@@ -3,7 +3,7 @@ use bevy_renet::RenetClientPlugin;
 use blitz_common::{panic_on_error_system, Lobby, PlayerInput};
 use exit::exit_system;
 use networking::{client_send_input, client_sync_players, new_renet_client};
-use resources::{Textures, WinSize, PLAYER_SPRITE};
+use resources::{Textures, PLAYER_SPRITE};
 
 mod exit;
 mod networking;
@@ -38,9 +38,7 @@ fn main() {
     app.run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<&Window>) {
-    let window = windows.get_single().unwrap();
-
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Camera
     commands.spawn(Camera2dBundle::default());
 
@@ -48,18 +46,22 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
     commands.insert_resource(Textures {
         player: asset_server.load(PLAYER_SPRITE),
     });
-
-    // Create Window Resources
-    commands.insert_resource(WinSize {
-        width: window.width(),
-        height: window.height(),
-    });
 }
 
-fn player_input(keyboard_input: Res<Input<KeyCode>>, mut player_input: ResMut<PlayerInput>) {
+fn player_input(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut player_input: ResMut<PlayerInput>,
+    windows: Query<&Window>,
+) {
     player_input.left = keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left);
     player_input.right =
         keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right);
     player_input.up = keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up);
     player_input.down = keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down);
+
+    let window = windows.get_single().unwrap();
+
+    if let Some(mouse) = window.cursor_position() {
+        player_input.mouse = mouse;
+    }
 }

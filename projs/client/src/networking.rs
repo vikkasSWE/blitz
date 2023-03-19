@@ -1,10 +1,13 @@
-use bevy::{math::vec3, prelude::*};
+use bevy::{
+    math::{vec2, vec3},
+    prelude::*,
+};
 use bevy_renet::renet::{ClientAuthentication, DefaultChannel, RenetClient, RenetConnectionConfig};
 use blitz_common::{Lobby, Player, PlayerInput, ServerMessages, PROTOCOL_ID};
 
-use std::{collections::HashMap, net::UdpSocket, time::SystemTime};
+use std::{collections::HashMap, f32::consts::PI, net::UdpSocket, time::SystemTime};
 
-use crate::resources::{Textures, WinSize};
+use crate::resources::Textures;
 
 pub fn new_renet_client() -> RenetClient {
     let server_addr = "127.0.0.1:5001".parse().unwrap(); // "192.168.0.6:5001".parse().unwrap(); //
@@ -32,17 +35,19 @@ pub fn client_send_input(player_input: Res<PlayerInput>, mut client: ResMut<Rene
 pub fn client_sync_players(
     mut commands: Commands,
     textures: Res<Textures>,
-    win_size: Res<WinSize>,
     mut lobby: ResMut<Lobby>,
     mut client: ResMut<RenetClient>,
+    windows: Query<&Window>,
 ) {
+    let window = windows.get_single().unwrap();
+
     while let Some(message) = client.receive_message(DefaultChannel::Reliable) {
         let server_message = bincode::deserialize(&message).unwrap();
         match server_message {
             ServerMessages::PlayerConnected { id } => {
                 println!("Player {} connected.", id);
 
-                let bottom = -win_size.height / 2.0;
+                let bottom = -window.height() / 2.0;
                 let player_entity = commands
                     .spawn(SpriteBundle {
                         texture: textures.player.clone(),
@@ -77,20 +82,23 @@ pub fn client_sync_players(
     }
 
     while let Some(message) = client.receive_message(DefaultChannel::Unreliable) {
-        let players: HashMap<u64, [f32; 2]> = bincode::deserialize(&message).unwrap();
+        let players: HashMap<u64, [f32; 4]> =
+            bincode::deserialize(&message).expect("Failed to Deserialize message!");
 
         for (player_id, translation) in players.iter() {
             if let Some(player) = lobby.players.get(player_id) {
                 if let Some(player_entity) = &player.entity {
-                    let bottom = -win_size.height / 2.0;
+                    let player_pos = vec2(translation[0], translation[1]);
+                    let mouse_pos = vec2(
+                        translation[2] - window.width() / 2.0,
+                        translation[3] - window.height() / 2.0,
+                    );
+                    let angle = (player_pos - mouse_pos).angle_between(Vec2::X) + PI;
+
                     let transform = Transform {
-                        translation: vec3(
-                            0.0 + translation[0],
-                            bottom + translation[1] + 75.0 / 4.0 + 5.0,
-                            10.0,
-                        ),
+                        translation: vec3(translation[0], translation[1], 10.0),
+                        rotation: Quat::from_rotation_z(-angle - PI / 2.0),
                         scale: vec3(0.5, 0.5, 1.0),
-                        ..Default::default()
                     };
 
                     commands.entity(*player_entity).insert(transform);

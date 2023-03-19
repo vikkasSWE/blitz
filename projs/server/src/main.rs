@@ -91,12 +91,20 @@ fn server_update(
 }
 
 fn server_sync_players(mut server: ResMut<RenetServer>, lobby: Res<Lobby>) {
-    let mut players: HashMap<u64, [f32; 2]> = HashMap::new();
+    let mut players: HashMap<u64, [f32; 4]> = HashMap::new();
     for (id, player) in lobby.players.iter() {
-        players.insert(*id, player.transform);
+        players.insert(
+            *id,
+            [
+                player.transform[0],
+                player.transform[1],
+                player.input.mouse.x,
+                player.input.mouse.y,
+            ],
+        );
     }
 
-    let sync_message = bincode::serialize(&players).unwrap();
+    let sync_message = bincode::serialize(&players).expect("Failed to Serialize message!");
     server.broadcast_message(DefaultChannel::Unreliable, sync_message);
 }
 
