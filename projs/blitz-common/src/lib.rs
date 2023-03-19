@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 pub const PROTOCOL_ID: u64 = 7;
 
-#[derive(Debug, Default, Serialize, Deserialize, Component, Resource)]
+#[derive(
+    Debug, Copy, Clone, Default, Serialize, Deserialize, Component, Resource, PartialEq, Eq,
+)]
 pub struct PlayerInput {
     pub up: bool,
     pub down: bool,

@@ -1,4 +1,4 @@
-use bevy::{app::AppExit, log, prelude::*, window::WindowCloseRequested};
+use bevy::{log, prelude::*, window::WindowCloseRequested};
 use bevy_renet::{
     renet::{ClientAuthentication, DefaultChannel, RenetClient, RenetConnectionConfig},
     RenetClientPlugin,
@@ -63,8 +63,12 @@ fn client_send_input(player_input: Res<PlayerInput>, mut client: ResMut<RenetCli
     client.send_message(DefaultChannel::Reliable, input_message);
 }
 
-fn exit_system(events: EventReader<WindowCloseRequested>, mut client: ResMut<RenetClient>) {
-    if !events.is_empty() {
+fn exit_system(
+    events: EventReader<WindowCloseRequested>,
+    mut client: ResMut<RenetClient>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if !events.is_empty() || keyboard_input.pressed(KeyCode::Escape) {
         log::info!("Disconnecting from Server...");
         client.disconnect();
     }
