@@ -46,7 +46,6 @@ fn main() {
 
 fn server_update_system(
     mut server_events: EventReader<ServerEvent>,
-    // mut commands: Commands,
     mut lobby: ResMut<Lobby>,
     mut server: ResMut<RenetServer>,
 ) {
