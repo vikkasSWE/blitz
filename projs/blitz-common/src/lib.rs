@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::{log, prelude::*};
 use bevy_renet::renet::RenetError;
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,16 @@ pub struct PlayerInput {
     pub down: bool,
     pub left: bool,
     pub right: bool,
+}
+
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Player {
+    pub input: PlayerInput,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Resource)]
+pub struct Lobby {
+    pub players: HashMap<u64, Player>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Component)]

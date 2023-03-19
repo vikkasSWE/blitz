@@ -6,14 +6,12 @@ use bevy_renet::{
     },
     RenetServerPlugin,
 };
-use blitz_common::{panic_on_error_system, PlayerInput, PROTOCOL_ID};
+use blitz_common::{
+    panic_on_error_system, Lobby, Player, PlayerInput, ServerMessages, PROTOCOL_ID,
+};
 
-use std::net::UdpSocket;
 use std::time::SystemTime;
-
-use crate::resources::{Lobby, PlayerData};
-
-mod resources;
+use std::{collections::HashMap, net::UdpSocket};
 
 fn new_renet_server() -> RenetServer {
     let server_addr = "127.0.0.1:5001".parse().unwrap();
@@ -38,7 +36,7 @@ fn main() {
     app.add_plugin(RenetServerPlugin::default());
     app.insert_resource(new_renet_server());
 
-    app.add_system(server_update_system);
+    app.add_systems((server_update_system, server_sync_players));
 
     app.add_system(panic_on_error_system);
 
@@ -59,12 +57,22 @@ fn server_update_system(
 
                 lobby.players.insert(
                     *id,
-                    PlayerData {
+                    Player {
                         input: PlayerInput::default(),
                     },
                 );
+
+                let message =
+                    bincode::serialize(&ServerMessages::PlayerConnected { id: *id }).unwrap();
+                server.broadcast_message(DefaultChannel::Reliable, message);
             }
-            ServerEvent::ClientDisconnected(id) => println!("Client {id} Disconnected!!"),
+            ServerEvent::ClientDisconnected(id) => {
+                println!("Client {id} Disconnected!!");
+
+                let message =
+                    bincode::serialize(&ServerMessages::PlayerDisconnected { id: *id }).unwrap();
+                server.broadcast_message(DefaultChannel::Reliable, message);
+            }
         }
     }
 
@@ -80,4 +88,14 @@ fn server_update_system(
             }
         }
     }
+}
+
+fn server_sync_players(mut server: ResMut<RenetServer>, lobby: Res<Lobby>) {
+    let mut players: HashMap<u64, Player> = HashMap::new();
+    for (id, player) in lobby.players.iter() {
+        players.insert(*id, *player);
+    }
+
+    let sync_message = bincode::serialize(&players).unwrap();
+    server.broadcast_message(DefaultChannel::Unreliable, sync_message);
 }
