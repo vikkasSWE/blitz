@@ -5,6 +5,7 @@ use bevy_renet::renet::RenetError;
 use serde::{Deserialize, Serialize};
 
 pub const PROTOCOL_ID: u64 = 7;
+pub const PLAYER_MOVE_SPEED: f32 = 50.0;
 
 #[derive(
     Debug, Copy, Clone, Default, Serialize, Deserialize, Component, Resource, PartialEq, Eq,
@@ -16,9 +17,11 @@ pub struct PlayerInput {
     pub right: bool,
 }
 
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Component, Default, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Player {
+    pub entity: Option<Entity>,
     pub input: PlayerInput,
+    pub transform: [f32; 2],
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Resource)]

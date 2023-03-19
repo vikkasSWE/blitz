@@ -7,7 +7,8 @@ use bevy_renet::{
     RenetServerPlugin,
 };
 use blitz_common::{
-    panic_on_error_system, Lobby, Player, PlayerInput, ServerMessages, PROTOCOL_ID,
+    panic_on_error_system, Lobby, Player, PlayerInput, ServerMessages, PLAYER_MOVE_SPEED,
+    PROTOCOL_ID,
 };
 
 use std::time::SystemTime;
@@ -36,7 +37,7 @@ fn main() {
     app.add_plugin(RenetServerPlugin::default());
     app.insert_resource(new_renet_server());
 
-    app.add_systems((server_update_system, server_sync_players));
+    app.add_systems((server_update, server_sync_players, move_players));
 
     app.add_system(panic_on_error_system);
 
@@ -44,7 +45,7 @@ fn main() {
     app.run();
 }
 
-fn server_update_system(
+fn server_update(
     mut server_events: EventReader<ServerEvent>,
     mut lobby: ResMut<Lobby>,
     mut server: ResMut<RenetServer>,
@@ -54,12 +55,14 @@ fn server_update_system(
             ServerEvent::ClientConnected(id, _) => {
                 println!("Client {id} Connected!!");
 
-                lobby.players.insert(
-                    *id,
-                    Player {
-                        input: PlayerInput::default(),
-                    },
-                );
+                for &player_id in lobby.players.keys() {
+                    let message =
+                        bincode::serialize(&ServerMessages::PlayerConnected { id: player_id })
+                            .unwrap();
+                    server.send_message(*id, DefaultChannel::Reliable, message);
+                }
+
+                lobby.players.insert(*id, Player::default());
 
                 let message =
                     bincode::serialize(&ServerMessages::PlayerConnected { id: *id }).unwrap();
@@ -67,6 +70,8 @@ fn server_update_system(
             }
             ServerEvent::ClientDisconnected(id) => {
                 println!("Client {id} Disconnected!!");
+
+                lobby.players.remove(id);
 
                 let message =
                     bincode::serialize(&ServerMessages::PlayerDisconnected { id: *id }).unwrap();
@@ -79,10 +84,6 @@ fn server_update_system(
         while let Some(message) = server.receive_message(client_id, DefaultChannel::Reliable) {
             let player_input: PlayerInput = bincode::deserialize(&message).unwrap();
             if let Some(player_data) = lobby.players.get_mut(&client_id) {
-                if player_data.input != player_input {
-                    println!("Client {client_id} input: {:?}", player_input);
-                }
-
                 player_data.input = player_input;
             }
         }
@@ -90,11 +91,24 @@ fn server_update_system(
 }
 
 fn server_sync_players(mut server: ResMut<RenetServer>, lobby: Res<Lobby>) {
-    let mut players: HashMap<u64, Player> = HashMap::new();
+    let mut players: HashMap<u64, [f32; 2]> = HashMap::new();
     for (id, player) in lobby.players.iter() {
-        players.insert(*id, *player);
+        players.insert(*id, player.transform);
     }
 
     let sync_message = bincode::serialize(&players).unwrap();
     server.broadcast_message(DefaultChannel::Unreliable, sync_message);
+}
+
+fn move_players(mut lobby: ResMut<Lobby>, time: Res<Time>) {
+    for (_, player) in lobby.players.iter_mut() {
+        let input = player.input;
+        let transform = &mut player.transform;
+
+        let x = (input.right as i8 - input.left as i8) as f32;
+        let y = (input.down as i8 - input.up as i8) as f32;
+
+        transform[0] += x * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
+        transform[1] -= y * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
+    }
 }
