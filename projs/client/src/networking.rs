@@ -2,17 +2,20 @@ use bevy::{
     math::{vec2, vec3},
     prelude::*,
 };
-use bevy_renet::renet::{ClientAuthentication, DefaultChannel, RenetClient, RenetConnectionConfig};
-use blitz_common::{Lobby, Player, PlayerInput, ServerMessages, PROTOCOL_ID};
+use bevy_renet::renet::{ClientAuthentication, RenetClient};
+use blitz_common::{
+    client_connection_config, ClientChannel, Lobby, Player, PlayerInput, ServerChannel,
+    ServerMessage, PROTOCOL_ID,
+};
 
 use std::{collections::HashMap, f32::consts::PI, net::UdpSocket, time::SystemTime};
 
-use crate::resources::Textures;
+use crate::{resources::Textures, PlayerCommand};
 
 pub fn new_renet_client() -> RenetClient {
     let server_addr = "127.0.0.1:5001".parse().unwrap(); // "192.168.0.6:5001".parse().unwrap(); //
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    let connection_config = RenetConnectionConfig::default();
+    let connection_config = client_connection_config();
     let current_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap();
@@ -29,7 +32,17 @@ pub fn new_renet_client() -> RenetClient {
 pub fn client_send_input(player_input: Res<PlayerInput>, mut client: ResMut<RenetClient>) {
     let input_message = bincode::serialize(&*player_input).unwrap();
 
-    client.send_message(DefaultChannel::Reliable, input_message);
+    client.send_message(ClientChannel::Input, input_message);
+}
+
+pub fn client_send_player_commands(
+    mut player_commands: EventReader<PlayerCommand>,
+    mut client: ResMut<RenetClient>,
+) {
+    for command in player_commands.iter() {
+        let command_message = bincode::serialize(command).unwrap();
+        client.send_message(ClientChannel::Command, command_message);
+    }
 }
 
 pub fn client_sync_players(
@@ -41,18 +54,18 @@ pub fn client_sync_players(
 ) {
     let window = windows.get_single().unwrap();
 
-    while let Some(message) = client.receive_message(DefaultChannel::Reliable) {
-        let server_message = bincode::deserialize(&message).unwrap();
+    while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
+        let server_message =
+            bincode::deserialize(&message).expect("Failed to Deserialize message!");
         match server_message {
-            ServerMessages::PlayerConnected { id } => {
+            ServerMessage::PlayerConnected { id } => {
                 println!("Player {} connected.", id);
 
-                let bottom = -window.height() / 2.0;
                 let player_entity = commands
                     .spawn(SpriteBundle {
                         texture: textures.player.clone(),
                         transform: Transform {
-                            translation: vec3(0.0, bottom + 75.0 / 4.0 + 5.0, 10.0),
+                            translation: vec3(0.0, 0.0, 10.0),
                             scale: vec3(0.5, 0.5, 1.0),
                             ..Default::default()
                         },
@@ -69,7 +82,7 @@ pub fn client_sync_players(
                     },
                 );
             }
-            ServerMessages::PlayerDisconnected { id } => {
+            ServerMessage::PlayerDisconnected { id } => {
                 println!("Player {} disconnected.", id);
 
                 if let Some(player_entity) = lobby.players.remove(&id) {
@@ -78,10 +91,29 @@ pub fn client_sync_players(
                     }
                 }
             }
+            ServerMessage::SpawnProjectile {
+                entity,
+                translation,
+            } => {
+                println!("SpawnProjectile message! {entity}, {translation:?}");
+                commands.spawn(SpriteBundle {
+                    texture: textures.player_laser.clone(),
+                    transform: Transform {
+                        translation: vec3(translation[0], translation[1], 0.0),
+                        scale: vec3(0.5, 0.5, 1.0),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                });
+            }
+            ServerMessage::DespawnProjectile { entity } => {
+                println!("DespawnProjectile message! {entity}");
+                //TODO
+            }
         }
     }
 
-    while let Some(message) = client.receive_message(DefaultChannel::Unreliable) {
+    while let Some(message) = client.receive_message(ServerChannel::NetworkedEntities) {
         let players: HashMap<u64, [f32; 4]> =
             bincode::deserialize(&message).expect("Failed to Deserialize message!");
 

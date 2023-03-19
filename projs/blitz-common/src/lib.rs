@@ -1,7 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use bevy::{log, prelude::*};
-use bevy_renet::renet::RenetError;
+use bevy_renet::renet::{
+    ChannelConfig, ReliableChannelConfig, RenetConnectionConfig, RenetError,
+    UnreliableChannelConfig,
+};
 use serde::{Deserialize, Serialize};
 
 pub const PROTOCOL_ID: u64 = 7;
@@ -14,6 +17,7 @@ pub struct PlayerInput {
     pub left: bool,
     pub right: bool,
     pub mouse: Vec2,
+    pub space: bool,
 }
 
 #[derive(Component, Default, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
@@ -29,9 +33,107 @@ pub struct Lobby {
 }
 
 #[derive(Debug, Serialize, Deserialize, Component)]
-pub enum ServerMessages {
-    PlayerConnected { id: u64 },
-    PlayerDisconnected { id: u64 },
+pub enum ServerMessage {
+    PlayerConnected {
+        id: u64,
+    },
+    PlayerDisconnected {
+        id: u64,
+    },
+    SpawnProjectile {
+        entity: u64, // TODO: ENTITY
+        translation: [f32; 2],
+    },
+    DespawnProjectile {
+        entity: u64, // TODO: ENTITY
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize, Component)]
+pub enum PlayerCommand {
+    BasicAttack { cast_at: Vec2 },
+}
+
+pub enum ClientChannel {
+    Input,
+    Command,
+}
+
+pub enum ServerChannel {
+    ServerMessages,
+    NetworkedEntities,
+}
+
+impl From<ClientChannel> for u8 {
+    fn from(channel_id: ClientChannel) -> Self {
+        match channel_id {
+            ClientChannel::Command => 0,
+            ClientChannel::Input => 1,
+        }
+    }
+}
+
+impl ClientChannel {
+    pub fn channels_config() -> Vec<ChannelConfig> {
+        vec![
+            ReliableChannelConfig {
+                channel_id: Self::Input.into(),
+                message_resend_time: Duration::ZERO,
+                ..Default::default()
+            }
+            .into(),
+            ReliableChannelConfig {
+                channel_id: Self::Command.into(),
+                message_resend_time: Duration::ZERO,
+                ..Default::default()
+            }
+            .into(),
+        ]
+    }
+}
+
+impl From<ServerChannel> for u8 {
+    fn from(channel_id: ServerChannel) -> Self {
+        match channel_id {
+            ServerChannel::NetworkedEntities => 0,
+            ServerChannel::ServerMessages => 1,
+        }
+    }
+}
+
+impl ServerChannel {
+    pub fn channels_config() -> Vec<ChannelConfig> {
+        vec![
+            UnreliableChannelConfig {
+                channel_id: Self::NetworkedEntities.into(),
+                sequenced: true, // We don't care about old positions
+                ..Default::default()
+            }
+            .into(),
+            ReliableChannelConfig {
+                channel_id: Self::ServerMessages.into(),
+                message_resend_time: Duration::from_millis(200),
+                ..Default::default()
+            }
+            .into(),
+        ]
+    }
+}
+
+pub fn client_connection_config() -> RenetConnectionConfig {
+    RenetConnectionConfig {
+        send_channels_config: ClientChannel::channels_config(),
+        receive_channels_config: ServerChannel::channels_config(),
+        ..Default::default()
+    }
+}
+
+pub fn server_connection_config() -> RenetConnectionConfig {
+    RenetConnectionConfig {
+        send_channels_config: ServerChannel::channels_config(),
+        receive_channels_config: ClientChannel::channels_config(),
+        ..Default::default()
+    }
 }
 
 /// If any error is found we just panic

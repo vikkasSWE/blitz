@@ -1,14 +1,11 @@
 use bevy::prelude::*;
 use bevy_renet::{
-    renet::{
-        DefaultChannel, RenetConnectionConfig, RenetServer, ServerAuthentication, ServerConfig,
-        ServerEvent,
-    },
+    renet::{RenetServer, ServerAuthentication, ServerConfig, ServerEvent},
     RenetServerPlugin,
 };
 use blitz_common::{
-    panic_on_error_system, Lobby, Player, PlayerInput, ServerMessages, PLAYER_MOVE_SPEED,
-    PROTOCOL_ID,
+    panic_on_error_system, server_connection_config, ClientChannel, Lobby, Player, PlayerCommand,
+    PlayerInput, ServerChannel, ServerMessage, PLAYER_MOVE_SPEED, PROTOCOL_ID,
 };
 
 use std::time::SystemTime;
@@ -17,7 +14,7 @@ use std::{collections::HashMap, net::UdpSocket};
 fn new_renet_server() -> RenetServer {
     let server_addr = "127.0.0.1:5001".parse().unwrap();
     let socket = UdpSocket::bind(server_addr).unwrap();
-    let connection_config = RenetConnectionConfig::default();
+    let connection_config = server_connection_config();
     let server_config =
         ServerConfig::new(64, PROTOCOL_ID, server_addr, ServerAuthentication::Unsecure);
     let current_time = SystemTime::now()
@@ -57,34 +54,57 @@ fn server_update(
 
                 for &player_id in lobby.players.keys() {
                     let message =
-                        bincode::serialize(&ServerMessages::PlayerConnected { id: player_id })
-                            .unwrap();
-                    server.send_message(*id, DefaultChannel::Reliable, message);
+                        bincode::serialize(&ServerMessage::PlayerConnected { id: player_id })
+                            .expect("Failed to Serialize message!");
+                    server.send_message(*id, ServerChannel::ServerMessages, message);
                 }
 
                 lobby.players.insert(*id, Player::default());
 
-                let message =
-                    bincode::serialize(&ServerMessages::PlayerConnected { id: *id }).unwrap();
-                server.broadcast_message(DefaultChannel::Reliable, message);
+                let message = bincode::serialize(&ServerMessage::PlayerConnected { id: *id })
+                    .expect("Failed to Serialize message!");
+                server.broadcast_message(ServerChannel::ServerMessages, message);
             }
             ServerEvent::ClientDisconnected(id) => {
                 println!("Client {id} Disconnected!!");
 
                 lobby.players.remove(id);
 
-                let message =
-                    bincode::serialize(&ServerMessages::PlayerDisconnected { id: *id }).unwrap();
-                server.broadcast_message(DefaultChannel::Reliable, message);
+                let message = bincode::serialize(&ServerMessage::PlayerDisconnected { id: *id })
+                    .expect("Failed to Serialize message!");
+                server.broadcast_message(ServerChannel::ServerMessages, message);
             }
         }
     }
 
     for client_id in server.clients_id().into_iter() {
-        while let Some(message) = server.receive_message(client_id, DefaultChannel::Reliable) {
-            let player_input: PlayerInput = bincode::deserialize(&message).unwrap();
+        while let Some(message) = server.receive_message(client_id, ClientChannel::Input) {
+            let player_input: PlayerInput =
+                bincode::deserialize(&message).expect("Failed to Deserialize message!");
             if let Some(player_data) = lobby.players.get_mut(&client_id) {
                 player_data.input = player_input;
+            }
+        }
+
+        while let Some(message) = server.receive_message(client_id, ClientChannel::Command) {
+            let command: PlayerCommand =
+                bincode::deserialize(&message).expect("Failed to Deserialize message!");
+
+            match command {
+                PlayerCommand::BasicAttack { cast_at } => {
+                    println!(
+                        "Received basic attack from client {}: {:?}",
+                        client_id, cast_at
+                    );
+
+                    let message = ServerMessage::SpawnProjectile {
+                        entity: 30,              // TODO
+                        translation: [0.0, 0.0], // TODO
+                    };
+                    let message =
+                        bincode::serialize(&message).expect("Failed to Serialize message!");
+                    server.broadcast_message(ServerChannel::ServerMessages, message);
+                }
             }
         }
     }
@@ -105,7 +125,7 @@ fn server_sync_players(mut server: ResMut<RenetServer>, lobby: Res<Lobby>) {
     }
 
     let sync_message = bincode::serialize(&players).expect("Failed to Serialize message!");
-    server.broadcast_message(DefaultChannel::Unreliable, sync_message);
+    server.broadcast_message(ServerChannel::NetworkedEntities, sync_message);
 }
 
 fn move_players(mut lobby: ResMut<Lobby>, time: Res<Time>) {

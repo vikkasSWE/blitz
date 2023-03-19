@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use bevy_renet::RenetClientPlugin;
-use blitz_common::{panic_on_error_system, Lobby, PlayerInput};
+use blitz_common::{panic_on_error_system, Lobby, PlayerCommand, PlayerInput};
 use exit::exit_system;
-use networking::{client_send_input, client_sync_players, new_renet_client};
-use resources::{Textures, PLAYER_SPRITE};
+use networking::{
+    client_send_input, client_send_player_commands, client_sync_players, new_renet_client,
+};
+use resources::{Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
 
 mod exit;
 mod networking;
@@ -19,6 +21,8 @@ fn main() {
         ..Default::default()
     }));
 
+    app.add_event::<PlayerCommand>();
+
     app.init_resource::<Lobby>();
     app.init_resource::<PlayerInput>();
 
@@ -28,8 +32,13 @@ fn main() {
     app.add_startup_system(setup);
 
     app.add_systems(
-        (player_input, client_sync_players, client_send_input)
-            .distributive_run_if(bevy_renet::client_connected),
+        (
+            player_input.run_if(bevy_renet::client_connected),
+            client_sync_players.run_if(bevy_renet::client_connected),
+            client_send_input.run_if(bevy_renet::client_connected),
+            client_send_player_commands.run_if(bevy_renet::client_connected),
+        )
+            .after(exit_system),
     );
 
     app.add_system(panic_on_error_system);
@@ -45,6 +54,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Textures
     commands.insert_resource(Textures {
         player: asset_server.load(PLAYER_SPRITE),
+        player_laser: asset_server.load(PLAYER_LASER_SPRITE),
     });
 }
 
@@ -52,6 +62,8 @@ fn player_input(
     keyboard_input: Res<Input<KeyCode>>,
     mut player_input: ResMut<PlayerInput>,
     windows: Query<&Window>,
+    mut player_commands: EventWriter<PlayerCommand>,
+    mouse_button_input: Res<Input<MouseButton>>,
 ) {
     player_input.left = keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left);
     player_input.right =
@@ -63,5 +75,11 @@ fn player_input(
 
     if let Some(mouse) = window.cursor_position() {
         player_input.mouse = mouse;
+    }
+
+    if mouse_button_input.just_pressed(MouseButton::Left) {
+        player_commands.send(PlayerCommand::BasicAttack {
+            cast_at: player_input.mouse,
+        });
     }
 }
