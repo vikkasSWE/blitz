@@ -1,14 +1,11 @@
-use bevy::{
-    math::{vec2, vec3},
-    prelude::*,
-};
+use bevy::{math::vec3, prelude::*};
 use bevy_renet::renet::{ClientAuthentication, RenetClient};
 use blitz_common::{
     client_connection_config, ClientChannel, Lobby, PlayerInput, ServerChannel, ServerMessage,
     PROTOCOL_ID,
 };
 
-use std::{collections::HashMap, f32::consts::PI, net::UdpSocket, time::SystemTime};
+use std::{collections::HashMap, net::UdpSocket, time::SystemTime};
 
 use crate::{resources::Textures, PlayerCommand};
 
@@ -50,9 +47,7 @@ pub fn client_sync_players(
     textures: Res<Textures>,
     mut lobby: ResMut<Lobby>,
     mut client: ResMut<RenetClient>,
-    windows: Query<&Window>,
 ) {
-    let window = windows.get_single().unwrap();
     while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
         let server_message =
             bincode::deserialize(&message).expect("Failed to Deserialize message!");
@@ -95,12 +90,6 @@ pub fn client_sync_players(
         let players: HashMap<u64, Transform> =
             bincode::deserialize(&message).expect("Failed to Deserialize message!");
         for (player_id, transform) in players.iter() {
-            // let player_pos = vec2(translation[0], translation[1]);
-            // let mouse_pos = vec2(
-            //     translation[3] - window.width() / 2.0,
-            //     translation[4] - window.height() / 2.0,
-            // );
-            // let angle = (player_pos - mouse_pos).angle_between(Vec2::X) + PI;
             if let Some(player_entity) = lobby.players.get(player_id) {
                 let transform = *transform;
                 commands.entity(*player_entity).insert(transform);

@@ -149,6 +149,14 @@ fn server_sync_players(mut server: ResMut<RenetServer>, query: Query<(&Transform
 
 fn move_players(mut query: Query<(&mut Transform, &PlayerInput)>, time: Res<Time>) {
     for (mut transform, input) in query.iter_mut() {
+        // TODO: Implement look to mouse using input!!!
+        // let player_pos = vec2(translation[0], translation[1]);
+        // let mouse_pos = vec2(
+        //     translation[3] - window.width() / 2.0,
+        //     translation[4] - window.height() / 2.0,
+        // );
+        // let angle = (player_pos - mouse_pos).angle_between(Vec2::X) + PI;
+
         let x = (input.right as i8 - input.left as i8) as f32;
         let y = (input.down as i8 - input.up as i8) as f32;
         transform.translation.x += x * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
