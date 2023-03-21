@@ -22,14 +22,12 @@ pub struct PlayerInput {
 
 #[derive(Component, Default, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Player {
-    pub entity: Option<Entity>,
-    pub input: PlayerInput,
-    pub transform: [f32; 2],
+    pub id: u64,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Resource)]
 pub struct Lobby {
-    pub players: HashMap<u64, Player>,
+    pub players: HashMap<u64, Entity>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Component)]
@@ -41,8 +39,7 @@ pub enum ServerMessage {
         id: u64,
     },
     SpawnProjectile {
-        entity: u64, // TODO: ENTITY
-        translation: [f32; 2],
+        entity: Entity, // TODO: ENTITY
     },
     DespawnProjectile {
         entity: u64, // TODO: ENTITY

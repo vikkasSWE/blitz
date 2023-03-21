@@ -4,8 +4,8 @@ use bevy::{
 };
 use bevy_renet::renet::{ClientAuthentication, RenetClient};
 use blitz_common::{
-    client_connection_config, ClientChannel, Lobby, Player, PlayerInput, ServerChannel,
-    ServerMessage, PROTOCOL_ID,
+    client_connection_config, ClientChannel, Lobby, PlayerInput, ServerChannel, ServerMessage,
+    PROTOCOL_ID,
 };
 
 use std::{collections::HashMap, f32::consts::PI, net::UdpSocket, time::SystemTime};
@@ -53,7 +53,6 @@ pub fn client_sync_players(
     windows: Query<&Window>,
 ) {
     let window = windows.get_single().unwrap();
-
     while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
         let server_message =
             bincode::deserialize(&message).expect("Failed to Deserialize message!");
@@ -65,46 +64,25 @@ pub fn client_sync_players(
                     .spawn(SpriteBundle {
                         texture: textures.player.clone(),
                         transform: Transform {
-                            translation: vec3(0.0, 0.0, 10.0),
-                            scale: vec3(0.5, 0.5, 1.0),
+                            translation: vec3(0.0, 0.0, 0.0),
                             ..Default::default()
                         },
                         ..Default::default()
                     })
                     .id();
 
-                lobby.players.insert(
-                    id,
-                    Player {
-                        entity: Some(player_entity),
-                        input: PlayerInput::default(),
-                        transform: [0.0, 0.0],
-                    },
-                );
+                lobby.players.insert(id, player_entity);
             }
             ServerMessage::PlayerDisconnected { id } => {
                 println!("Player {} disconnected.", id);
 
                 if let Some(player_entity) = lobby.players.remove(&id) {
-                    if let Some(entity) = player_entity.entity {
-                        commands.entity(entity).despawn();
-                    }
+                    commands.entity(player_entity).despawn();
                 }
             }
-            ServerMessage::SpawnProjectile {
-                entity,
-                translation,
-            } => {
-                println!("SpawnProjectile message! {entity}, {translation:?}");
-                commands.spawn(SpriteBundle {
-                    texture: textures.player_laser.clone(),
-                    transform: Transform {
-                        translation: vec3(translation[0], translation[1], 0.0),
-                        scale: vec3(0.5, 0.5, 1.0),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                });
+            ServerMessage::SpawnProjectile { entity } => {
+                println!("SpawnProjectile message! {entity:?}");
+                //TODO
             }
             ServerMessage::DespawnProjectile { entity } => {
                 println!("DespawnProjectile message! {entity}");
@@ -114,27 +92,18 @@ pub fn client_sync_players(
     }
 
     while let Some(message) = client.receive_message(ServerChannel::NetworkedEntities) {
-        let players: HashMap<u64, [f32; 4]> =
+        let players: HashMap<u64, Transform> =
             bincode::deserialize(&message).expect("Failed to Deserialize message!");
-
-        for (player_id, translation) in players.iter() {
-            if let Some(player) = lobby.players.get(player_id) {
-                if let Some(player_entity) = &player.entity {
-                    let player_pos = vec2(translation[0], translation[1]);
-                    let mouse_pos = vec2(
-                        translation[2] - window.width() / 2.0,
-                        translation[3] - window.height() / 2.0,
-                    );
-                    let angle = (player_pos - mouse_pos).angle_between(Vec2::X) + PI;
-
-                    let transform = Transform {
-                        translation: vec3(translation[0], translation[1], 10.0),
-                        rotation: Quat::from_rotation_z(-angle - PI / 2.0),
-                        scale: vec3(0.5, 0.5, 1.0),
-                    };
-
-                    commands.entity(*player_entity).insert(transform);
-                }
+        for (player_id, transform) in players.iter() {
+            // let player_pos = vec2(translation[0], translation[1]);
+            // let mouse_pos = vec2(
+            //     translation[3] - window.width() / 2.0,
+            //     translation[4] - window.height() / 2.0,
+            // );
+            // let angle = (player_pos - mouse_pos).angle_between(Vec2::X) + PI;
+            if let Some(player_entity) = lobby.players.get(player_id) {
+                let transform = *transform;
+                commands.entity(*player_entity).insert(transform);
             }
         }
     }

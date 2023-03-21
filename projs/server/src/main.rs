@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{math::vec3, prelude::*};
 use bevy_renet::{
     renet::{RenetServer, ServerAuthentication, ServerConfig, ServerEvent},
     RenetServerPlugin,
@@ -43,6 +43,7 @@ fn main() {
 }
 
 fn server_update(
+    mut commands: Commands,
     mut server_events: EventReader<ServerEvent>,
     mut lobby: ResMut<Lobby>,
     mut server: ResMut<RenetServer>,
@@ -52,6 +53,19 @@ fn server_update(
             ServerEvent::ClientConnected(id, _) => {
                 println!("Client {id} Connected!!");
 
+                let player_entity = commands
+                    .spawn(PbrBundle {
+                        transform: Transform {
+                            translation: vec3(0.0, 0.0, 0.0),
+                            scale: vec3(0.5, 0.5, 1.0),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(PlayerInput::default())
+                    .insert(Player { id: *id })
+                    .id();
+
                 for &player_id in lobby.players.keys() {
                     let message =
                         bincode::serialize(&ServerMessage::PlayerConnected { id: player_id })
@@ -59,7 +73,7 @@ fn server_update(
                     server.send_message(*id, ServerChannel::ServerMessages, message);
                 }
 
-                lobby.players.insert(*id, Player::default());
+                lobby.players.insert(*id, player_entity);
 
                 let message = bincode::serialize(&ServerMessage::PlayerConnected { id: *id })
                     .expect("Failed to Serialize message!");
@@ -68,7 +82,9 @@ fn server_update(
             ServerEvent::ClientDisconnected(id) => {
                 println!("Client {id} Disconnected!!");
 
-                lobby.players.remove(id);
+                if let Some(player_entity) = lobby.players.remove(id) {
+                    commands.entity(player_entity).despawn();
+                }
 
                 let message = bincode::serialize(&ServerMessage::PlayerDisconnected { id: *id })
                     .expect("Failed to Serialize message!");
@@ -81,8 +97,9 @@ fn server_update(
         while let Some(message) = server.receive_message(client_id, ClientChannel::Input) {
             let player_input: PlayerInput =
                 bincode::deserialize(&message).expect("Failed to Deserialize message!");
-            if let Some(player_data) = lobby.players.get_mut(&client_id) {
-                player_data.input = player_input;
+
+            if let Some(player_entity) = lobby.players.get(&client_id) {
+                commands.entity(*player_entity).insert(player_input);
             }
         }
 
@@ -97,9 +114,19 @@ fn server_update(
                         client_id, cast_at
                     );
 
+                    let projectile_entity = commands
+                        .spawn(SpriteBundle {
+                            transform: Transform {
+                                translation: vec3(0.0, 0.0, 0.0),
+                                scale: vec3(0.5, 0.5, 1.0),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .id();
+
                     let message = ServerMessage::SpawnProjectile {
-                        entity: 30,              // TODO
-                        translation: [0.0, 0.0], // TODO
+                        entity: projectile_entity, // TODO
                     };
                     let message =
                         bincode::serialize(&message).expect("Failed to Serialize message!");
@@ -110,33 +137,21 @@ fn server_update(
     }
 }
 
-fn server_sync_players(mut server: ResMut<RenetServer>, lobby: Res<Lobby>) {
-    let mut players: HashMap<u64, [f32; 4]> = HashMap::new();
-    for (id, player) in lobby.players.iter() {
-        players.insert(
-            *id,
-            [
-                player.transform[0],
-                player.transform[1],
-                player.input.mouse.x,
-                player.input.mouse.y,
-            ],
-        );
+fn server_sync_players(mut server: ResMut<RenetServer>, query: Query<(&Transform, &Player)>) {
+    let mut players: HashMap<u64, Transform> = HashMap::new();
+    for (transform, player) in query.iter() {
+        players.insert(player.id, *transform);
     }
 
     let sync_message = bincode::serialize(&players).expect("Failed to Serialize message!");
     server.broadcast_message(ServerChannel::NetworkedEntities, sync_message);
 }
 
-fn move_players(mut lobby: ResMut<Lobby>, time: Res<Time>) {
-    for (_, player) in lobby.players.iter_mut() {
-        let input = player.input;
-        let transform = &mut player.transform;
-
+fn move_players(mut query: Query<(&mut Transform, &PlayerInput)>, time: Res<Time>) {
+    for (mut transform, input) in query.iter_mut() {
         let x = (input.right as i8 - input.left as i8) as f32;
         let y = (input.down as i8 - input.up as i8) as f32;
-
-        transform[0] += x * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
-        transform[1] -= y * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
+        transform.translation.x += x * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
+        transform.translation.y -= y * PLAYER_MOVE_SPEED * time.delta().as_secs_f32();
     }
 }
