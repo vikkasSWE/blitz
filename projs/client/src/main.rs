@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{math::vec2, prelude::*};
 use bevy_renet::RenetClientPlugin;
 use blitz_common::{panic_on_error_system, Lobby, PlayerCommand, PlayerInput};
 use exit::exit_system;
@@ -74,7 +74,7 @@ fn player_input(
     let window = windows.get_single().unwrap();
 
     if let Some(mouse) = window.cursor_position() {
-        player_input.mouse = mouse;
+        player_input.mouse = mouse - vec2(window.width() / 2.0, window.height() / 2.0);
     }
 
     if mouse_button_input.just_pressed(MouseButton::Left) {
