@@ -11,7 +11,7 @@
 				"$rustc"
 			],
 			"group": "build",
-			"label": "Run Blitz Server + CLient"
+			"label": "Run Blitz Server + Client"
 		},
 		{
 			"type": "cargo",
@@ -24,7 +24,7 @@
 				"$rustc"
 			],
 			"group": "build",
-			"label": "Run Blitz Server + 2x CLient"
+			"label": "Run Blitz Server + 2x Client"
 		},
 		{
 			"type": "cargo",
@@ -37,7 +37,7 @@
 				"$rustc"
 			],
 			"group": "build",
-			"label": "Run Blitz Server + 3x CLient"
+			"label": "Run Blitz Server + 3x Client"
 		},
 		{
 			"type": "cargo",
