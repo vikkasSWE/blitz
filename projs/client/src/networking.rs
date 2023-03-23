@@ -1,8 +1,7 @@
 use bevy::{math::vec3, prelude::*};
-use bevy_renet::renet::{ClientAuthentication, RenetClient};
+use bevy_renet::renet::{ClientAuthentication, RenetClient, RenetConnectionConfig};
 use blitz_common::{
-    client_connection_config, ClientChannel, NetworkedEntities, PlayerInput, ServerChannel,
-    ServerMessage, PROTOCOL_ID,
+    ClientChannel, NetworkedEntities, PlayerInput, ServerChannel, ServerMessage, PROTOCOL_ID,
 };
 
 use std::{net::UdpSocket, time::SystemTime};
@@ -11,6 +10,14 @@ use crate::{
     resources::{ClientLobby, NetworkMapping, PlayerInfo, Textures},
     PlayerCommand,
 };
+
+pub fn client_connection_config() -> RenetConnectionConfig {
+    RenetConnectionConfig {
+        send_channels_config: ClientChannel::channels_config(),
+        receive_channels_config: ServerChannel::channels_config(),
+        ..Default::default()
+    }
+}
 
 pub fn new_renet_client() -> RenetClient {
     let server_addr = "127.0.0.1:5001".parse().unwrap(); // "192.168.0.6:5001".parse().unwrap(); //
@@ -111,6 +118,32 @@ pub fn client_sync_players(
                 if let Some(entity) = network_mapping.0.remove(&entity) {
                     commands.entity(entity).despawn();
                 }
+            }
+            ServerMessage::DespawnPlayer { entity } => {
+                println!("Despawning Player {:?}", entity);
+
+                // if let Some(entity) = network_mapping.0.remove(&entity) {
+                //     commands.entity(entity).despawn();
+                // }
+            }
+            ServerMessage::RespawnPlayer { entity } => {
+                println!("Respawning Player {:?}", entity);
+
+                // let player_entity = commands
+                //     .spawn(SpriteBundle {
+                //         texture: textures.player.clone(),
+                //         transform: Transform {
+                //             translation: vec3(0.0, 0.0, 0.0),
+                //             scale: vec3(0.5, 0.5, 1.0),
+                //             ..Default::default()
+                //         },
+                //         ..Default::default()
+                //     })
+                //     .id();
+
+                // if let Some(client_entity) = network_mapping.0.get_mut(&entity) {
+                //     *client_entity = player_entity;
+                // }
             }
         }
     }

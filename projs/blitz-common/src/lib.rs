@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use bevy::{log, prelude::*};
 use bevy_renet::renet::{
-    ChannelConfig, ReliableChannelConfig, RenetConnectionConfig, RenetError,
-    UnreliableChannelConfig,
+    ChannelConfig, ReliableChannelConfig, RenetError, UnreliableChannelConfig,
 };
 use serde::{Deserialize, Serialize};
 
@@ -55,6 +54,12 @@ pub enum ServerMessage {
         rotation: Quat,
     },
     DespawnProjectile {
+        entity: Entity,
+    },
+    DespawnPlayer {
+        entity: Entity,
+    },
+    RespawnPlayer {
         entity: Entity,
     },
 }
@@ -127,22 +132,6 @@ impl ServerChannel {
             }
             .into(),
         ]
-    }
-}
-
-pub fn client_connection_config() -> RenetConnectionConfig {
-    RenetConnectionConfig {
-        send_channels_config: ClientChannel::channels_config(),
-        receive_channels_config: ServerChannel::channels_config(),
-        ..Default::default()
-    }
-}
-
-pub fn server_connection_config() -> RenetConnectionConfig {
-    RenetConnectionConfig {
-        send_channels_config: ServerChannel::channels_config(),
-        receive_channels_config: ClientChannel::channels_config(),
-        ..Default::default()
     }
 }
 
