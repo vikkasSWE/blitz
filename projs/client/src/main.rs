@@ -1,4 +1,4 @@
-use std::{fmt::format, path::Path};
+use std::path::Path;
 
 use bevy::prelude::*;
 use blitz_common::{panic_on_error_system, PlayerCommand};
