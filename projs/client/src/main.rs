@@ -1,14 +1,14 @@
-use bevy::{math::vec2, prelude::*};
-use bevy_renet::RenetClientPlugin;
-use blitz_common::{panic_on_error_system, PlayerCommand, PlayerInput};
+use bevy::prelude::*;
+use blitz_common::{panic_on_error_system, PlayerCommand};
 use exit::exit_system;
-use networking::{
-    client_send_input, client_send_player_commands, client_sync_players, new_renet_client,
-};
-use resources::{ClientLobby, NetworkMapping, Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
+
+use networking::ClientNetworkPlugin;
+use player::ClientPlayerPlugin;
+use resources::{Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
 
 mod exit;
 mod networking;
+mod player;
 mod resources;
 
 fn main() {
@@ -21,26 +21,10 @@ fn main() {
         ..Default::default()
     }));
 
-    app.add_event::<PlayerCommand>();
-
-    app.init_resource::<ClientLobby>();
-    app.init_resource::<PlayerInput>();
-
-    app.add_plugin(RenetClientPlugin::default());
-    app.insert_resource(new_renet_client());
-    app.insert_resource(NetworkMapping::default());
+    app.add_plugin(ClientPlayerPlugin);
+    app.add_plugin(ClientNetworkPlugin);
 
     app.add_startup_system(setup);
-
-    app.add_systems(
-        (
-            player_input.run_if(bevy_renet::client_connected),
-            client_sync_players.run_if(bevy_renet::client_connected),
-            client_send_input.run_if(bevy_renet::client_connected),
-            client_send_player_commands.run_if(bevy_renet::client_connected),
-        )
-            .after(exit_system),
-    );
 
     app.add_system(panic_on_error_system);
     app.add_system(exit_system);
@@ -57,28 +41,4 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         player: asset_server.load(PLAYER_SPRITE),
         player_laser: asset_server.load(PLAYER_LASER_SPRITE),
     });
-}
-
-fn player_input(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut player_input: ResMut<PlayerInput>,
-    windows: Query<&Window>,
-    mut player_commands: EventWriter<PlayerCommand>,
-    mouse_button_input: Res<Input<MouseButton>>,
-) {
-    player_input.left = keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left);
-    player_input.right =
-        keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right);
-    player_input.up = keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up);
-    player_input.down = keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down);
-
-    let window = windows.get_single().unwrap();
-
-    if let Some(mouse) = window.cursor_position() {
-        player_input.mouse = mouse - vec2(window.width() / 2.0, window.height() / 2.0);
-    }
-
-    if mouse_button_input.just_pressed(MouseButton::Left) {
-        player_commands.send(PlayerCommand::BasicAttack);
-    }
 }

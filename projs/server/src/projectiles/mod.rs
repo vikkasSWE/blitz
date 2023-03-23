@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use bevy_renet::renet::RenetServer;
 use blitz_common::{Projectile, ServerChannel, ServerMessage, PLAYER_MOVE_SPEED};
 
-pub struct ProjectilesPlugin;
-impl Plugin for ProjectilesPlugin {
+pub struct ServerProjectilesPlugin;
+impl Plugin for ServerProjectilesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems((move_projectiles, update_projectiles, projectile_on_removal));
     }

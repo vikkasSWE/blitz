@@ -2,8 +2,8 @@ use bevy::{math::vec2, prelude::*, sprite::collide_aabb::collide};
 use bevy_renet::renet::RenetServer;
 use blitz_common::{FromPlayer, Player, Projectile, ServerChannel, ServerMessage};
 
-pub struct CollisionsPlugin;
-impl Plugin for CollisionsPlugin {
+pub struct ServerCollisionsPlugin;
+impl Plugin for ServerCollisionsPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(projectile_hit_player);
     }

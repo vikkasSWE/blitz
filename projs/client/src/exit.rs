@@ -21,6 +21,7 @@ pub fn exit_system(
             exit.send(AppExit);
         }
 
+        // TODO: Should be relplaced by a GUI lobby
         // if keyboard_input.pressed(KeyCode::Q) {
         //     log::info!("Disconnecting from Server...");
         //     client.disconnect();

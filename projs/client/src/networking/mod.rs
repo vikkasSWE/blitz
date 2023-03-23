@@ -1,15 +1,41 @@
 use bevy::{math::vec3, prelude::*};
-use bevy_renet::renet::{ClientAuthentication, RenetClient, RenetConnectionConfig};
+use bevy_renet::{
+    renet::{ClientAuthentication, RenetClient, RenetConnectionConfig},
+    RenetClientPlugin,
+};
 use blitz_common::{
     ClientChannel, NetworkedEntities, PlayerInput, ServerChannel, ServerMessage, PROTOCOL_ID,
 };
 
 use std::{net::UdpSocket, time::SystemTime};
 
-use crate::{
-    resources::{ClientLobby, NetworkMapping, PlayerInfo, Textures},
-    PlayerCommand,
-};
+use crate::{exit::exit_system, resources::Textures, PlayerCommand};
+
+mod resources;
+use resources::{ClientLobby, NetworkMapping, PlayerInfo};
+
+pub struct ClientNetworkPlugin;
+impl Plugin for ClientNetworkPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(RenetClientPlugin::default());
+
+        app.insert_resource(new_renet_client());
+        app.insert_resource(NetworkMapping::default());
+
+        app.init_resource::<ClientLobby>();
+
+        app.add_event::<PlayerCommand>();
+
+        app.add_systems(
+            (
+                client_sync_players.run_if(bevy_renet::client_connected),
+                client_send_input.run_if(bevy_renet::client_connected),
+                client_send_player_commands.run_if(bevy_renet::client_connected),
+            )
+                .after(exit_system),
+        );
+    }
+}
 
 pub fn client_connection_config() -> RenetConnectionConfig {
     RenetConnectionConfig {

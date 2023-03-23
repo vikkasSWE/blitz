@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::UdpSocket, time::SystemTime};
+use std::{net::UdpSocket, time::SystemTime};
 
 use bevy::{
     math::{vec2, vec3},
@@ -13,13 +13,11 @@ use blitz_common::{
     ServerChannel, ServerMessage, PROTOCOL_ID,
 };
 
-#[derive(Debug, Default, Resource)]
-pub struct ServerLobby {
-    pub players: HashMap<u64, Entity>,
-}
+mod resources;
+use resources::ServerLobby;
 
-pub struct NetworkPlugin;
-impl Plugin for NetworkPlugin {
+pub struct ServerNetworkPlugin;
+impl Plugin for ServerNetworkPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RenetServerPlugin::default());
 

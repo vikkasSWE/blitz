@@ -3,8 +3,8 @@ use std::f32::consts::FRAC_PI_2;
 use bevy::{math::vec2, prelude::*};
 use blitz_common::{PlayerInput, PLAYER_MOVE_SPEED};
 
-pub struct PlayerPlugin;
-impl Plugin for PlayerPlugin {
+pub struct ServerPlayerPlugin;
+impl Plugin for ServerPlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(move_players);
     }
