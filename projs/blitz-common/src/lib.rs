@@ -25,6 +25,17 @@ pub struct Player {
     pub id: u64,
 }
 
+#[derive(Debug, Component, Default)]
+pub struct Projectile {
+    pub duration: Timer,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct NetworkedEntities {
+    pub entities: Vec<Entity>,
+    pub transforms: Vec<Transform>,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize, Resource)]
 pub struct Lobby {
     pub players: HashMap<u64, Entity>,
@@ -34,15 +45,18 @@ pub struct Lobby {
 pub enum ServerMessage {
     PlayerConnected {
         id: u64,
+        entity: Entity,
     },
     PlayerDisconnected {
         id: u64,
     },
     SpawnProjectile {
-        entity: Entity, // TODO: ENTITY
+        entity: Entity,
+        transform: Vec2,
+        rotation: Quat,
     },
     DespawnProjectile {
-        entity: u64, // TODO: ENTITY
+        entity: Entity,
     },
 }
 

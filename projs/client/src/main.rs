@@ -4,6 +4,7 @@ use blitz_common::{panic_on_error_system, Lobby, PlayerCommand, PlayerInput};
 use exit::exit_system;
 use networking::{
     client_send_input, client_send_player_commands, client_sync_players, new_renet_client,
+    NetworkMapping,
 };
 use resources::{Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
 
@@ -28,6 +29,7 @@ fn main() {
 
     app.add_plugin(RenetClientPlugin::default());
     app.insert_resource(new_renet_client());
+    app.insert_resource(NetworkMapping::default());
 
     app.add_startup_system(setup);
 
