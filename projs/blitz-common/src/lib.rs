@@ -24,6 +24,10 @@ pub struct PlayerInput {
 pub struct Player {
     pub id: u64,
 }
+#[derive(Component)]
+pub struct FromPlayer {
+    pub entity: Entity,
+}
 
 #[derive(Debug, Component, Default)]
 pub struct Projectile {

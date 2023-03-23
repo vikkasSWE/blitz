@@ -1,15 +1,16 @@
 use bevy::{
     math::{vec2, vec3},
     prelude::*,
+    sprite::collide_aabb::collide,
 };
 use bevy_renet::{
     renet::{RenetServer, ServerAuthentication, ServerConfig, ServerEvent},
     RenetServerPlugin,
 };
 use blitz_common::{
-    panic_on_error_system, server_connection_config, ClientChannel, NetworkedEntities, Player,
-    PlayerCommand, PlayerInput, Projectile, ServerChannel, ServerMessage, PLAYER_MOVE_SPEED,
-    PROTOCOL_ID,
+    panic_on_error_system, server_connection_config, ClientChannel, FromPlayer, NetworkedEntities,
+    Player, PlayerCommand, PlayerInput, Projectile, ServerChannel, ServerMessage,
+    PLAYER_MOVE_SPEED, PROTOCOL_ID,
 };
 
 use std::{collections::HashMap, f32::consts::FRAC_PI_2, net::UdpSocket};
@@ -49,6 +50,7 @@ fn main() {
         move_projectiles,
         update_projectiles,
         projectile_on_removal,
+        projectile_hit_player,
     ));
 
     app.add_system(panic_on_error_system);
@@ -146,6 +148,9 @@ fn server_update(
                                 .insert(Projectile {
                                     duration: Timer::from_seconds(1.5, TimerMode::Once),
                                 })
+                                .insert(FromPlayer {
+                                    entity: *player_entity,
+                                })
                                 .id();
 
                             let message = ServerMessage::SpawnProjectile {
@@ -212,8 +217,6 @@ fn move_projectiles(mut query: Query<(&mut Transform, &Projectile)>, time: Res<T
             angle = -angle + PI;
         }
 
-        println!("angle: {}, vec: {}", angle.to_degrees(), rotation);
-
         transform.translation.x += PLAYER_MOVE_SPEED * time.delta().as_secs_f32() * angle.cos();
         transform.translation.y += PLAYER_MOVE_SPEED * time.delta().as_secs_f32() * angle.sin();
     }
@@ -241,5 +244,29 @@ fn projectile_on_removal(
         let message = bincode::serialize(&message).unwrap();
 
         server.broadcast_message(ServerChannel::ServerMessages, message);
+    }
+}
+
+fn projectile_hit_player(
+    projectile_query: Query<(Entity, &FromPlayer, &Transform), With<Projectile>>,
+    player_query: Query<(Entity, &Transform), With<Player>>,
+) {
+    for (projectile_entity, from_player, projectile_transform) in projectile_query.iter() {
+        for (player_entity, player_tranform) in player_query.iter() {
+            if player_entity != from_player.entity
+                && collide(
+                    player_tranform.translation,
+                    vec2(64.0, 64.0),
+                    projectile_transform.translation,
+                    vec2(64.0, 64.0),
+                )
+                .is_some()
+            {
+                println!(
+                    "laser {:?} hit player: {:?}",
+                    projectile_entity, player_entity
+                );
+            }
+        }
     }
 }
