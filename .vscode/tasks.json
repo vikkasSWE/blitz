@@ -3,29 +3,41 @@
 	"tasks": [
 		{
 			"type": "cargo",
-			"command": "run",
+			"command": "xtask",
 			"args": [
-				"--bin",
-				"server"
+				"blitz"
 			],
 			"problemMatcher": [
 				"$rustc"
 			],
 			"group": "build",
-			"label": "Run Blitz Server"
+			"label": "Run Blitz Server + CLient"
 		},
 		{
 			"type": "cargo",
-			"command": "run",
+			"command": "xtask",
 			"args": [
-				"--bin",
-				"client"
+				"blitz_x",
+				"2"
 			],
 			"problemMatcher": [
 				"$rustc"
 			],
 			"group": "build",
-			"label": "Run Blitz Client"
+			"label": "Run Blitz Server + 2x CLient"
+		},
+		{
+			"type": "cargo",
+			"command": "xtask",
+			"args": [
+				"blitz_x",
+				"3"
+			],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Run Blitz Server + 3x CLient"
 		},
 		{
 			"type": "cargo",
