@@ -16,18 +16,6 @@ use blitz_common::{
 mod resources;
 use resources::ServerLobby;
 
-pub struct ServerNetworkPlugin;
-impl Plugin for ServerNetworkPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugin(RenetServerPlugin::default());
-
-        app.insert_resource(ServerLobby::default());
-        app.insert_resource(new_renet_server());
-
-        app.add_systems((server_update, server_sync_entities));
-    }
-}
-
 pub fn server_connection_config() -> RenetConnectionConfig {
     RenetConnectionConfig {
         send_channels_config: ServerChannel::channels_config(),
@@ -48,6 +36,18 @@ fn new_renet_server() -> RenetServer {
     RenetServer::new(current_time, server_config, connection_config, socket).unwrap()
 }
 
+pub struct ServerNetworkPlugin;
+impl Plugin for ServerNetworkPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(RenetServerPlugin::default());
+
+        app.insert_resource(ServerLobby::default());
+        app.insert_resource(new_renet_server());
+
+        app.add_systems((server_update, server_sync_entities));
+    }
+}
+
 fn server_update(
     mut commands: Commands,
     mut server_events: EventReader<ServerEvent>,
@@ -65,7 +65,7 @@ fn server_update(
                         id: player.id,
                         entity,
                     })
-                    .unwrap();
+                    .expect("Failed to Serialize message!");
                     server.send_message(*id, ServerChannel::ServerMessages, message);
                 }
 

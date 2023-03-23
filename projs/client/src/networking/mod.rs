@@ -14,29 +14,6 @@ use crate::{exit::exit_system, resources::Textures, PlayerCommand};
 mod resources;
 use resources::{ClientLobby, NetworkMapping, PlayerInfo};
 
-pub struct ClientNetworkPlugin;
-impl Plugin for ClientNetworkPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugin(RenetClientPlugin::default());
-
-        app.insert_resource(new_renet_client());
-        app.insert_resource(NetworkMapping::default());
-
-        app.init_resource::<ClientLobby>();
-
-        app.add_event::<PlayerCommand>();
-
-        app.add_systems(
-            (
-                client_sync_players.run_if(bevy_renet::client_connected),
-                client_send_input.run_if(bevy_renet::client_connected),
-                client_send_player_commands.run_if(bevy_renet::client_connected),
-            )
-                .after(exit_system),
-        );
-    }
-}
-
 pub fn client_connection_config() -> RenetConnectionConfig {
     RenetConnectionConfig {
         send_channels_config: ClientChannel::channels_config(),
@@ -60,6 +37,29 @@ pub fn new_renet_client() -> RenetClient {
         user_data: None,
     };
     RenetClient::new(current_time, socket, connection_config, authentication).unwrap()
+}
+
+pub struct ClientNetworkPlugin;
+impl Plugin for ClientNetworkPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(RenetClientPlugin::default());
+
+        app.insert_resource(new_renet_client());
+        app.insert_resource(NetworkMapping::default());
+
+        app.init_resource::<ClientLobby>();
+
+        app.add_event::<PlayerCommand>();
+
+        app.add_systems(
+            (
+                client_sync_players.run_if(bevy_renet::client_connected),
+                client_send_input.run_if(bevy_renet::client_connected),
+                client_send_player_commands.run_if(bevy_renet::client_connected),
+            )
+                .after(exit_system),
+        );
+    }
 }
 
 pub fn client_send_input(player_input: Res<PlayerInput>, mut client: ResMut<RenetClient>) {
