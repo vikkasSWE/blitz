@@ -11,7 +11,7 @@ pub static PROFILE: &str = env!("PROFILE");
 pub static OUT_DIR: &str = env!("OUT_DIR");
 pub static ASSETS_DIR: &str = env!("ASSETS_DIR");
 
-fn run() -> Result<(), Box<dyn Error>> {
+fn run(num_clients: usize) -> Result<(), Box<dyn Error>> {
     ctrlc::set_handler({
         move || {
             #[cfg(target_os = "windows")]
@@ -31,16 +31,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         Command::new(server_name).current_dir(OUT_DIR).spawn()?
     };
 
-    std::thread::sleep(Duration::from_millis(100));
+    let mut clients = Vec::new();
+    for _ in 0..num_clients {
+        std::thread::sleep(Duration::from_millis(100));
 
-    let mut client = {
-        #[cfg(target_os = "windows")]
-        let client_name = "client.exe";
+        let client = {
+            #[cfg(target_os = "windows")]
+            let client_name = "client.exe";
 
-        #[cfg(target_os = "linux")]
-        let client_name = "./client";
-        Command::new(client_name).current_dir(OUT_DIR).spawn()?
-    };
+            #[cfg(target_os = "linux")]
+            let client_name = "./client";
+            Command::new(client_name).current_dir(OUT_DIR).spawn()?
+        };
+
+        clients.push(client);
+    }
 
     loop {
         thread::sleep(Duration::from_millis(100));
@@ -55,12 +60,14 @@ fn run() -> Result<(), Box<dyn Error>> {
             Err(_) => {}
         }
 
-        match client.try_wait() {
-            Ok(Some(_)) => {}
-            Ok(None) => {
-                all_done = false;
+        for client in &mut clients {
+            match client.try_wait() {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    all_done = false;
+                }
+                Err(_) => {}
             }
-            Err(_) => {}
         }
 
         if all_done {
@@ -107,9 +114,9 @@ fn build() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_server_client() -> Result<(), Box<dyn Error>> {
+fn run_server_client(n: usize) -> Result<(), Box<dyn Error>> {
     build()?;
-    run()?;
+    run(n)?;
 
     Ok(())
 }
@@ -117,7 +124,12 @@ fn run_server_client() -> Result<(), Box<dyn Error>> {
 fn try_main() -> Result<(), Box<dyn Error>> {
     let task = env::args().nth(1);
     match task.as_deref() {
-        Some("blitz") => run_server_client()?,
+        Some("blitz") => run_server_client(0)?,
+        Some("blitz_x") => {
+            let n = env::args().nth(2).unwrap().parse::<usize>().unwrap();
+
+            run_server_client(n)?;
+        }
         _ => print_help(),
     }
     Ok(())
@@ -126,7 +138,8 @@ fn try_main() -> Result<(), Box<dyn Error>> {
 fn print_help() {
     eprintln!(
         "Tasks:
-blitz             builds and runs Blitz with a Server and Client
+blitz               builds and runs Blitz with a Server and Client
+blitz X             builds and runs Blitz with a Server and X number of Client
 
 "
     )
