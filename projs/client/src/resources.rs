@@ -1,5 +1,7 @@
 use bevy::prelude::{Handle, Image, Resource};
 
+pub static ASSETS_DIR: &str = env!("ASSETS_DIR");
+
 pub const PLAYER_SPRITE: &str = "player_b_01.png";
 pub const PLAYER_LASER_SPRITE: &str = "laser_a_01.png";
 

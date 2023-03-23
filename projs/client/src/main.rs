@@ -1,10 +1,12 @@
+use std::{fmt::format, path::Path};
+
 use bevy::prelude::*;
 use blitz_common::{panic_on_error_system, PlayerCommand};
 use exit::exit_system;
 
 use networking::ClientNetworkPlugin;
 use player::ClientPlayerPlugin;
-use resources::{Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
+use resources::{Textures, ASSETS_DIR, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
 
 mod exit;
 mod networking;
@@ -36,9 +38,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Camera
     commands.spawn(Camera2dBundle::default());
 
+    let asset_path = Path::new(ASSETS_DIR);
+
     // Textures
     commands.insert_resource(Textures {
-        player: asset_server.load(PLAYER_SPRITE),
-        player_laser: asset_server.load(PLAYER_LASER_SPRITE),
+        player: asset_server.load(asset_path.join(PLAYER_SPRITE)),
+        player_laser: asset_server.load(asset_path.join(PLAYER_LASER_SPRITE)),
     });
 }

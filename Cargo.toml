@@ -2,6 +2,7 @@
 members = [
     "projs/client",
     "projs/server",
+    "xtask",
 ]
 
 default-members = [
