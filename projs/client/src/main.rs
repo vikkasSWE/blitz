@@ -1,12 +1,11 @@
 use bevy::{math::vec2, prelude::*};
 use bevy_renet::RenetClientPlugin;
-use blitz_common::{panic_on_error_system, Lobby, PlayerCommand, PlayerInput};
+use blitz_common::{panic_on_error_system, PlayerCommand, PlayerInput};
 use exit::exit_system;
 use networking::{
     client_send_input, client_send_player_commands, client_sync_players, new_renet_client,
-    NetworkMapping,
 };
-use resources::{Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
+use resources::{ClientLobby, NetworkMapping, Textures, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
 
 mod exit;
 mod networking;
@@ -24,7 +23,7 @@ fn main() {
 
     app.add_event::<PlayerCommand>();
 
-    app.init_resource::<Lobby>();
+    app.init_resource::<ClientLobby>();
     app.init_resource::<PlayerInput>();
 
     app.add_plugin(RenetClientPlugin::default());
@@ -80,8 +79,6 @@ fn player_input(
     }
 
     if mouse_button_input.just_pressed(MouseButton::Left) {
-        player_commands.send(PlayerCommand::BasicAttack {
-            cast_at: player_input.mouse,
-        });
+        player_commands.send(PlayerCommand::BasicAttack);
     }
 }

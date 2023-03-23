@@ -7,13 +7,18 @@ use bevy_renet::{
     RenetServerPlugin,
 };
 use blitz_common::{
-    panic_on_error_system, server_connection_config, ClientChannel, Lobby, NetworkedEntities,
-    Player, PlayerCommand, PlayerInput, Projectile, ServerChannel, ServerMessage,
-    PLAYER_MOVE_SPEED, PROTOCOL_ID,
+    panic_on_error_system, server_connection_config, ClientChannel, NetworkedEntities, Player,
+    PlayerCommand, PlayerInput, Projectile, ServerChannel, ServerMessage, PLAYER_MOVE_SPEED,
+    PROTOCOL_ID,
 };
 
 use std::{collections::HashMap, f32::consts::FRAC_PI_2, net::UdpSocket};
 use std::{f32::consts::PI, time::SystemTime};
+
+#[derive(Debug, Default, Resource)]
+pub struct ServerLobby {
+    pub players: HashMap<u64, Entity>,
+}
 
 fn new_renet_server() -> RenetServer {
     let server_addr = "127.0.0.1:5001".parse().unwrap();
@@ -32,19 +37,18 @@ fn main() {
 
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-
-    app.init_resource::<Lobby>();
-
     app.add_plugin(RenetServerPlugin::default());
+
+    app.insert_resource(ServerLobby::default());
     app.insert_resource(new_renet_server());
 
     app.add_systems((
         server_update,
-        server_sync_players,
+        server_sync_entities,
         move_players,
         move_projectiles,
-        update_projectiles_system,
-        projectile_on_removal_system,
+        update_projectiles,
+        projectile_on_removal,
     ));
 
     app.add_system(panic_on_error_system);
@@ -56,7 +60,7 @@ fn main() {
 fn server_update(
     mut commands: Commands,
     mut server_events: EventReader<ServerEvent>,
-    mut lobby: ResMut<Lobby>,
+    mut lobby: ResMut<ServerLobby>,
     mut server: ResMut<RenetServer>,
     players: Query<(Entity, &Player, &Transform)>,
 ) {
@@ -64,6 +68,15 @@ fn server_update(
         match event {
             ServerEvent::ClientConnected(id, _) => {
                 println!("Client {id} Connected!!");
+
+                for (entity, player, _) in players.iter() {
+                    let message = bincode::serialize(&ServerMessage::PlayerCreate {
+                        id: player.id,
+                        entity,
+                    })
+                    .unwrap();
+                    server.send_message(*id, ServerChannel::ServerMessages, message);
+                }
 
                 let player_entity = commands
                     .spawn(PbrBundle {
@@ -78,18 +91,9 @@ fn server_update(
                     .insert(Player { id: *id })
                     .id();
 
-                for &player_id in lobby.players.keys() {
-                    let message = bincode::serialize(&ServerMessage::PlayerConnected {
-                        id: player_id,
-                        entity: player_entity,
-                    })
-                    .expect("Failed to Serialize message!");
-                    server.send_message(*id, ServerChannel::ServerMessages, message);
-                }
-
                 lobby.players.insert(*id, player_entity);
 
-                let message = bincode::serialize(&ServerMessage::PlayerConnected {
+                let message = bincode::serialize(&ServerMessage::PlayerCreate {
                     id: *id,
                     entity: player_entity,
                 })
@@ -125,11 +129,8 @@ fn server_update(
                 bincode::deserialize(&message).expect("Failed to Deserialize message!");
 
             match command {
-                PlayerCommand::BasicAttack { cast_at } => {
-                    println!(
-                        "Received basic attack from client {}: {:?}",
-                        client_id, cast_at
-                    );
+                PlayerCommand::BasicAttack => {
+                    println!("Received basic attack from client {}", client_id);
 
                     if let Some(player_entity) = lobby.players.get(&client_id) {
                         if let Ok((_, _, player_transform)) = players.get(*player_entity) {
@@ -167,7 +168,7 @@ fn server_update(
 }
 
 #[allow(clippy::type_complexity)]
-fn server_sync_players(
+fn server_sync_entities(
     mut server: ResMut<RenetServer>,
     query: Query<(Entity, &Transform), Or<(With<Player>, With<Projectile>)>>,
 ) {
@@ -202,7 +203,7 @@ fn move_players(mut query: Query<(&mut Transform, &PlayerInput)>, time: Res<Time
 }
 
 fn move_projectiles(mut query: Query<(&mut Transform, &Projectile)>, time: Res<Time>) {
-    for (mut transform, input) in query.iter_mut() {
+    for (mut transform, _) in query.iter_mut() {
         let (rotation, mut angle) = transform.rotation.to_axis_angle();
 
         angle = -angle + FRAC_PI_2;
@@ -218,7 +219,7 @@ fn move_projectiles(mut query: Query<(&mut Transform, &Projectile)>, time: Res<T
     }
 }
 
-fn update_projectiles_system(
+fn update_projectiles(
     mut commands: Commands,
     mut projectiles: Query<(Entity, &mut Projectile)>,
     time: Res<Time>,
@@ -231,7 +232,7 @@ fn update_projectiles_system(
     }
 }
 
-fn projectile_on_removal_system(
+fn projectile_on_removal(
     mut server: ResMut<RenetServer>,
     mut removed_projectiles: RemovedComponents<Projectile>,
 ) {

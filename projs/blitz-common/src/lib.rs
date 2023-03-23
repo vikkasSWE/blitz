@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use bevy::{log, prelude::*};
 use bevy_renet::renet::{
@@ -36,14 +36,9 @@ pub struct NetworkedEntities {
     pub transforms: Vec<Transform>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Resource)]
-pub struct Lobby {
-    pub players: HashMap<u64, Entity>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Component)]
 pub enum ServerMessage {
-    PlayerConnected {
+    PlayerCreate {
         id: u64,
         entity: Entity,
     },
@@ -62,7 +57,7 @@ pub enum ServerMessage {
 
 #[derive(Debug, Serialize, Deserialize, Component)]
 pub enum PlayerCommand {
-    BasicAttack { cast_at: Vec2 },
+    BasicAttack,
 }
 
 pub enum ClientChannel {
