@@ -124,11 +124,14 @@ fn run_server_client(n: usize) -> Result<(), Box<dyn Error>> {
 fn try_main() -> Result<(), Box<dyn Error>> {
     let task = env::args().nth(1);
     match task.as_deref() {
-        Some("blitz") => run_server_client(0)?,
-        Some("blitz_x") => {
-            let n = env::args().nth(2).unwrap().parse::<usize>().unwrap();
+        Some("blitz") => {
+            if let Some(num_clients) = env::args().nth(2) {
+                let n = num_clients.parse::<usize>().unwrap();
 
-            run_server_client(n)?;
+                run_server_client(n)?;
+            } else {
+                run_server_client(1)?;
+            }
         }
         _ => print_help(),
     }
