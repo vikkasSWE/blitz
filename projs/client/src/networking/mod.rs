@@ -99,6 +99,10 @@ pub fn client_sync_players(
                         scale: vec3(0.5, 0.5, 1.0),
                         ..Default::default()
                     },
+                    sprite: Sprite {
+                        color: Color::rgb(3.0, 3.0, 3.0),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 });
 
@@ -134,6 +138,10 @@ pub fn client_sync_players(
                         translation: vec3(translation.x, translation.y, 0.0),
                         rotation,
                         scale: Vec3::splat(1.0),
+                    },
+                    sprite: Sprite {
+                        color: Color::rgb(3.0, 2.0, 3.0),
+                        ..Default::default()
                     },
                     ..Default::default()
                 });

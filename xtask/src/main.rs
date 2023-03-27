@@ -143,7 +143,6 @@ fn print_help() {
         "Tasks:
 blitz               builds and runs Blitz with a Server and Client
 blitz X             builds and runs Blitz with a Server and X number of Client
-
 "
     )
 }
