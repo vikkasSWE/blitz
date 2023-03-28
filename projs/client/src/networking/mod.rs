@@ -10,7 +10,10 @@ use blitz_common::{
 use std::{net::UdpSocket, time::SystemTime};
 
 use crate::{
-    exit::exit_system, networking::resources::ControlledPlayer, resources::Textures, PlayerCommand,
+    exit::exit_system,
+    networking::resources::ControlledPlayer,
+    resources::{AudioAtlas, ExplosionToSpawn, Textures},
+    PlayerCommand,
 };
 
 pub mod resources;
@@ -80,12 +83,19 @@ pub fn client_send_player_commands(
     }
 }
 
+#[derive(Component)]
+pub struct PlayerEntity;
+
+#[allow(clippy::too_many_arguments)]
 pub fn client_sync_players(
     mut commands: Commands,
     textures: Res<Textures>,
     mut lobby: ResMut<ClientLobby>,
     mut client: ResMut<RenetClient>,
     mut network_mapping: ResMut<NetworkMapping>,
+    audio: Res<Audio>,
+    audio_atlas: Res<AudioAtlas>,
+    player_query: Query<(Entity, &Transform), With<PlayerEntity>>,
 ) {
     let client_id = client.client_id();
     while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
@@ -108,6 +118,7 @@ pub fn client_sync_players(
                     },
                     ..Default::default()
                 });
+                client_entity.insert(PlayerEntity);
 
                 if client_id == id {
                     client_entity.insert(ControlledPlayer);
@@ -152,6 +163,9 @@ pub fn client_sync_players(
                     },
                     ..Default::default()
                 });
+
+                audio.play(audio_atlas.player_laser.clone());
+
                 network_mapping.0.insert(entity, projectile_entity.id());
             }
             ServerMessage::DespawnProjectile { entity } => {
@@ -162,6 +176,16 @@ pub fn client_sync_players(
             }
             ServerMessage::DespawnPlayer { entity } => {
                 println!("Despawning Player {:?}", entity);
+
+                if let Some(client_entity) = network_mapping.0.get(&entity) {
+                    for (entity, transform) in player_query.iter() {
+                        if *client_entity == entity {
+                            commands
+                                .spawn_empty()
+                                .insert(ExplosionToSpawn(transform.translation));
+                        }
+                    }
+                }
 
                 // if let Some(entity) = network_mapping.0.remove(&entity) {
                 //     commands.entity(entity).despawn();
