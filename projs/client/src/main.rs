@@ -36,13 +36,10 @@ fn main() {
 
     app.add_plugin(ClientPlayerPlugin);
     app.add_plugin(ClientNetworkPlugin);
+    app.add_plugin(WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::I)));
 
     app.add_plugin(LdtkPlugin)
-        .add_plugin(
-            WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
-        )
-        .insert_resource(LevelSelection::Index(0))
-        .register_ldtk_entity::<MyBundle>("MyEntityIdentifier");
+        .insert_resource(LevelSelection::Index(0));
 
     app.add_startup_system(setup);
 
@@ -80,21 +77,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ldtk_handle: asset_server.load(asset_path.join("world.ldtk")),
         ..Default::default()
     });
-}
-
-#[derive(Default, Component)]
-struct ComponentA;
-
-#[derive(Default, Component)]
-struct ComponentB;
-
-#[derive(Bundle, LdtkEntity)]
-pub struct MyBundle {
-    a: ComponentA,
-    b: ComponentB,
-    #[sprite_sheet_bundle]
-    #[bundle]
-    sprite_bundle: SpriteSheetBundle,
 }
 
 fn move_camera(
