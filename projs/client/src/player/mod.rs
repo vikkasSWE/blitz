@@ -22,6 +22,7 @@ fn player_input(
     windows: Query<&Window>,
     mut player_commands: EventWriter<PlayerCommand>,
     mouse_button_input: Res<Input<MouseButton>>,
+    query_camera: Query<&Transform, With<Camera>>,
 ) {
     player_input.left = keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left);
     player_input.right =
@@ -31,8 +32,14 @@ fn player_input(
 
     let window = windows.get_single().unwrap();
 
-    if let Some(mouse) = window.cursor_position() {
-        player_input.mouse = mouse - vec2(window.width() / 2.0, window.height() / 2.0);
+    if let Ok(camera_transform) = query_camera.get_single() {
+        if let Some(mouse) = window.cursor_position() {
+            player_input.mouse = mouse
+                - vec2(
+                    window.width() / 2.0 - camera_transform.translation.x,
+                    window.height() / 2.0 - camera_transform.translation.y,
+                );
+        }
     }
 
     if mouse_button_input.just_pressed(MouseButton::Left) {

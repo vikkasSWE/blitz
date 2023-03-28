@@ -9,9 +9,11 @@ use blitz_common::{
 
 use std::{net::UdpSocket, time::SystemTime};
 
-use crate::{exit::exit_system, resources::Textures, PlayerCommand};
+use crate::{
+    exit::exit_system, networking::resources::ControlledPlayer, resources::Textures, PlayerCommand,
+};
 
-mod resources;
+pub mod resources;
 use resources::{ClientLobby, NetworkMapping, PlayerInfo};
 
 pub fn client_connection_config() -> RenetConnectionConfig {
@@ -85,6 +87,7 @@ pub fn client_sync_players(
     mut client: ResMut<RenetClient>,
     mut network_mapping: ResMut<NetworkMapping>,
 ) {
+    let client_id = client.client_id();
     while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
         let server_message =
             bincode::deserialize(&message).expect("Failed to Deserialize message!");
@@ -92,7 +95,7 @@ pub fn client_sync_players(
             ServerMessage::PlayerCreate { id, entity } => {
                 println!("Player {} connected.", id);
 
-                let client_entity = commands.spawn(SpriteBundle {
+                let mut client_entity = commands.spawn(SpriteBundle {
                     texture: textures.player.clone(),
                     transform: Transform {
                         translation: vec3(0.0, 0.0, 0.0),
@@ -105,6 +108,10 @@ pub fn client_sync_players(
                     },
                     ..Default::default()
                 });
+
+                if client_id == id {
+                    client_entity.insert(ControlledPlayer);
+                }
 
                 let player_info = PlayerInfo {
                     server_entity: entity,

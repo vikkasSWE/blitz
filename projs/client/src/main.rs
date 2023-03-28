@@ -11,7 +11,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use blitz_common::{panic_on_error_system, PlayerCommand};
 use exit::exit_system;
 
-use networking::ClientNetworkPlugin;
+use networking::{resources::ControlledPlayer, ClientNetworkPlugin};
 use player::ClientPlayerPlugin;
 use resources::{Textures, ASSETS_DIR, PLAYER_LASER_SPRITE, PLAYER_SPRITE};
 
@@ -45,6 +45,8 @@ fn main() {
         .register_ldtk_entity::<MyBundle>("MyEntityIdentifier");
 
     app.add_startup_system(setup);
+
+    app.add_system(move_camera);
 
     app.add_system(panic_on_error_system);
     app.add_system(exit_system);
@@ -93,4 +95,25 @@ pub struct MyBundle {
     #[sprite_sheet_bundle]
     #[bundle]
     sprite_bundle: SpriteSheetBundle,
+}
+
+fn move_camera(
+    mut query_camera: Query<&mut Transform, With<Camera>>,
+    query_player: Query<&Transform, (With<ControlledPlayer>, Without<Camera>)>,
+    time: Res<Time>,
+) {
+    if let Some(player_transform) = query_player.iter().next() {
+        if let Ok(mut camera_transform) = query_camera.get_single_mut() {
+            let interpolation_speed = 5.0;
+
+            let old_z = camera_transform.translation.z;
+
+            camera_transform.translation = camera_transform.translation.lerp(
+                player_transform.translation,
+                time.delta_seconds() * interpolation_speed,
+            );
+
+            camera_transform.translation.z = old_z;
+        }
+    }
 }
